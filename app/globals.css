@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   /* Darker Theme Base */
@@ -36,12 +38,6 @@
   --background-end-rgb: 26, 26, 26;
   --background: var(--bg-primary);
   --foreground: var(--text-primary);
-}
-
-@theme inline {
-  --color-background: var(--bg-primary);
-  --color-foreground: var(--text-primary);
-  --font-sans: var(--font-inter);
 }
 
 body {
