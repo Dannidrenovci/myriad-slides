@@ -2,8 +2,11 @@
 
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Plus } from 'lucide-react'
+import { Plus, Copy, Trash2, FileText } from 'lucide-react'
 import { SlideThumbnail } from './SlideThumbnail'
+import { AddSlideButton } from './AddSlideButton'
+import { ContextMenu } from '../ui/context-menu'
+import { Tooltip } from '../ui/tooltip'
 
 interface Slide {
     id: string
@@ -20,6 +23,7 @@ interface SlideSidebarProps {
     onDuplicateSlide: (index: number) => void
     onDeleteSlide: (index: number) => void
     onAddSlide: () => void
+    onAddSlideAt?: (index: number) => void
 }
 
 export function SlideSidebar({
@@ -30,6 +34,7 @@ export function SlideSidebar({
     onDuplicateSlide,
     onDeleteSlide,
     onAddSlide,
+    onAddSlideAt,
 }: SlideSidebarProps) {
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -59,6 +64,12 @@ export function SlideSidebar({
         }
     }
 
+    const handleAddSlideAt = (index: number) => {
+        if (onAddSlideAt) {
+            onAddSlideAt(index)
+        }
+    }
+
     return (
         <div className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
             <div className="p-4 border-b border-gray-700">
@@ -73,28 +84,59 @@ export function SlideSidebar({
                 >
                     <SortableContext items={slides.map(s => s.id)} strategy={verticalListSortingStrategy}>
                         {slides.map((slide, index) => (
-                            <SlideThumbnail
-                                key={slide.id}
-                                slide={slide}
-                                index={index}
-                                isActive={index === currentSlideIndex}
-                                onSelect={() => onSelectSlide(index)}
-                                onDuplicate={() => onDuplicateSlide(index)}
-                                onDelete={() => onDeleteSlide(index)}
-                            />
+                            <div key={slide.id}>
+                                {/* Add slide button between slides */}
+                                {index > 0 && onAddSlideAt && (
+                                    <AddSlideButton onAddSlide={() => handleAddSlideAt(index)} />
+                                )}
+
+                                {/* Slide thumbnail with context menu */}
+                                <ContextMenu
+                                    items={[
+                                        {
+                                            label: 'Duplicate',
+                                            icon: <Copy className="w-4 h-4" />,
+                                            onClick: () => onDuplicateSlide(index)
+                                        },
+                                        {
+                                            label: 'Delete',
+                                            icon: <Trash2 className="w-4 h-4" />,
+                                            onClick: () => onDeleteSlide(index),
+                                            danger: true,
+                                            disabled: slides.length === 1
+                                        }
+                                    ]}
+                                >
+                                    <SlideThumbnail
+                                        slide={slide}
+                                        index={index}
+                                        isActive={index === currentSlideIndex}
+                                        onSelect={() => onSelectSlide(index)}
+                                        onDuplicate={() => onDuplicateSlide(index)}
+                                        onDelete={() => onDeleteSlide(index)}
+                                    />
+                                </ContextMenu>
+                            </div>
                         ))}
+
+                        {/* Add slide button after last slide */}
+                        {onAddSlideAt && slides.length > 0 && (
+                            <AddSlideButton onAddSlide={() => handleAddSlideAt(slides.length)} />
+                        )}
                     </SortableContext>
                 </DndContext>
             </div>
 
             <div className="p-4 border-t border-gray-700">
-                <button
-                    onClick={onAddSlide}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                >
-                    <Plus className="w-5 h-5" />
-                    Add Slide
-                </button>
+                <Tooltip content="Add a new slide (Ctrl+Enter)" side="top">
+                    <button
+                        onClick={onAddSlide}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                        <Plus className="w-5 h-5" />
+                        Add Slide
+                    </button>
+                </Tooltip>
             </div>
         </div>
     )

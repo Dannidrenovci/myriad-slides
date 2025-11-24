@@ -3,7 +3,7 @@
 import { use, useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Undo2, Redo2, Download } from 'lucide-react'
+import { ArrowLeft, Undo2, Redo2, Download, FileDown } from 'lucide-react'
 import { Layouts } from '@/components/layouts'
 import { SlideSidebar } from '@/components/editor/SlideSidebar'
 import { ZoomControls } from '@/components/editor/ZoomControls'
@@ -11,6 +11,8 @@ import { LayoutSelector } from '@/components/editor/LayoutSelector'
 import { TextFormatting } from '@/components/editor/TextFormatting'
 import { ImageTools } from '@/components/editor/ImageTools'
 import { ShapeTools } from '@/components/editor/ShapeTools'
+import { Tooltip } from '@/components/ui/tooltip'
+import { toast } from '@/components/ui/toast'
 import { useHistory } from '@/lib/useHistory'
 import { cn } from '@/lib/utils'
 import html2canvas from 'html2canvas'
@@ -249,24 +251,93 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
     }
 
     const exportToPDF = async () => {
-        const pdf = new jsPDF({
-            orientation: 'landscape',
-            unit: 'px',
-            format: [1280, 720]
-        })
+        try {
+            toast.info('Exporting presentation...', 'This may take a moment')
 
-        for (let i = 0; i < slides.length; i++) {
-            const slideElement = document.getElementById(`slide-export-${i}`)
-            if (slideElement) {
-                const canvas = await html2canvas(slideElement, { scale: 2 })
-                const imgData = canvas.toDataURL('image/png')
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'px',
+                format: [1280, 720]
+            })
 
-                if (i > 0) pdf.addPage()
-                pdf.addImage(imgData, 'PNG', 0, 0, 1280, 720)
+            for (let i = 0; i < slides.length; i++) {
+                const slideElement = document.getElementById(`slide-export-${i}`)
+                if (slideElement) {
+                    const canvas = await html2canvas(slideElement, { scale: 2 })
+                    const imgData = canvas.toDataURL('image/png')
+
+                    if (i > 0) pdf.addPage()
+                    pdf.addImage(imgData, 'PNG', 0, 0, 1280, 720)
+                }
             }
-        }
 
-        pdf.save(`${presentation?.title || 'presentation'}.pdf`)
+            pdf.save(`${presentation?.title || 'presentation'}.pdf`)
+            toast.success('PDF exported successfully!', `${slides.length} slides exported`)
+        } catch (error) {
+            console.error('Error exporting PDF:', error)
+            toast.error('Failed to export PDF', 'Please try again')
+        }
+    }
+
+    const exportCurrentSlide = async () => {
+        try {
+            toast.info('Exporting current slide...')
+
+            const slideElement = document.getElementById(`slide-export-${currentSlideIndex}`)
+            if (!slideElement) {
+                throw new Error('Slide element not found')
+            }
+
+            const canvas = await html2canvas(slideElement, { scale: 2 })
+            const imgData = canvas.toDataURL('image/png')
+
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'px',
+                format: [1280, 720]
+            })
+
+            pdf.addImage(imgData, 'PNG', 0, 0, 1280, 720)
+            pdf.save(`${presentation?.title || 'slide'}-${currentSlideIndex + 1}.pdf`)
+
+            toast.success('Slide exported successfully!')
+        } catch (error) {
+            console.error('Error exporting slide:', error)
+            toast.error('Failed to export slide', 'Please try again')
+        }
+    }
+
+    const handleAddSlideAt = async (index: number) => {
+        try {
+            const newSlide = {
+                presentation_id: id,
+                order_index: index,
+                layout_id: 'TitleAndBody',
+                content: { title: 'New Slide', body: 'Add your content here...' }
+            }
+
+            const { data, error } = await supabase
+                .from('slides')
+                .insert(newSlide)
+                .select()
+                .single()
+
+            if (error) throw error
+
+            if (data) {
+                const newSlides = [
+                    ...slides.slice(0, index),
+                    data,
+                    ...slides.slice(index).map(s => ({ ...s, order_index: s.order_index + 1 }))
+                ]
+                pushHistory(newSlides)
+                setCurrentSlideIndex(index)
+                toast.success('Slide added!')
+            }
+        } catch (error) {
+            console.error('Error adding slide:', error)
+            toast.error('Failed to add slide', 'Please try again')
+        }
     }
 
     if (loading) {
@@ -282,46 +353,61 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
             {/* Top Toolbar */}
             <div className="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4">
                 <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => router.push('/dashboard')}
-                        className="flex items-center gap-2 px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back
-                    </button>
+                    <Tooltip content="Back to dashboard" side="bottom">
+                        <button
+                            onClick={() => router.push('/dashboard')}
+                            className="flex items-center gap-2 px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back
+                        </button>
+                    </Tooltip>
                     <h1 className="text-lg font-semibold text-white">{presentation?.title}</h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={undo}
-                        disabled={!canUndo}
-                        className={cn(
-                            "p-2 rounded-lg transition-colors",
-                            canUndo ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 cursor-not-allowed"
-                        )}
-                        title="Undo (Ctrl+Z)"
-                    >
-                        <Undo2 className="w-4 h-4" />
-                    </button>
-                    <button
-                        onClick={redo}
-                        disabled={!canRedo}
-                        className={cn(
-                            "p-2 rounded-lg transition-colors",
-                            canRedo ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 cursor-not-allowed"
-                        )}
-                        title="Redo (Ctrl+Y)"
-                    >
-                        <Redo2 className="w-4 h-4" />
-                    </button>
+                    <Tooltip content="Undo (Ctrl+Z)" side="bottom">
+                        <button
+                            onClick={undo}
+                            disabled={!canUndo}
+                            className={cn(
+                                "p-2 rounded-lg transition-colors",
+                                canUndo ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 cursor-not-allowed"
+                            )}
+                        >
+                            <Undo2 className="w-4 h-4" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip content="Redo (Ctrl+Y)" side="bottom">
+                        <button
+                            onClick={redo}
+                            disabled={!canRedo}
+                            className={cn(
+                                "p-2 rounded-lg transition-colors",
+                                canRedo ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 cursor-not-allowed"
+                            )}
+                        >
+                            <Redo2 className="w-4 h-4" />
+                        </button>
+                    </Tooltip>
                     <div className="w-px h-6 bg-gray-700 mx-2" />
-                    <button
-                        onClick={exportToPDF}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                    >
-                        <Download className="w-4 h-4" />
-                        Export PDF
-                    </button>
+                    <Tooltip content="Export current slide only" side="bottom">
+                        <button
+                            onClick={exportCurrentSlide}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <FileDown className="w-4 h-4" />
+                            Export Slide
+                        </button>
+                    </Tooltip>
+                    <Tooltip content="Export all slides to PDF" side="bottom">
+                        <button
+                            onClick={exportToPDF}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <Download className="w-4 h-4" />
+                            Export All
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
 
@@ -335,6 +421,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                     onDuplicateSlide={handleDuplicateSlide}
                     onDeleteSlide={handleDeleteSlide}
                     onAddSlide={handleAddSlide}
+                    onAddSlideAt={handleAddSlideAt}
                 />
 
                 {/* Main Canvas */}
