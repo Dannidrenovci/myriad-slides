@@ -32,15 +32,16 @@ export function PresentationCard({ presentation }: PresentationCardProps) {
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -4 }}
             onClick={handleClick}
-            className="group bg-[#2a2a2a] rounded-xl border border-[#404040] hover:border-[#FFB4A3] transition-all cursor-pointer overflow-hidden"
+            className="group bg-[#1a1a1a]/50 backdrop-blur-sm rounded-xl border border-[#2a2a2a] hover:border-[#3a3a3a] transition-all cursor-pointer overflow-hidden gradient-hover"
         >
             {/* Thumbnail */}
-            <div className="aspect-video bg-gradient-to-br from-[#3a3a3a] to-[#2a2a2a] flex items-center justify-center relative">
-                <FileText className="w-16 h-16 text-[#505050] group-hover:text-[#FFB4A3] transition-colors" />
+            <div className="aspect-video bg-gradient-to-br from-[#242424] to-[#1a1a1a] flex items-center justify-center relative">
+                <div className="absolute inset-0 gradient-card opacity-50" />
+                <FileText className="w-16 h-16 text-[#3a3a3a] group-hover:text-[#ff6b35] transition-colors relative z-10" />
 
                 {/* Slide Count Badge */}
                 {presentation.slide_count !== undefined && (
-                    <div className="absolute bottom-3 right-3 bg-[#1a1a1a]/80 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1">
+                    <div className="absolute bottom-3 right-3 bg-[#0f0f0f]/80 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1 z-10">
                         <FileText className="w-3 h-3 text-[#a0a0a0]" />
                         <span className="text-xs font-medium text-[#a0a0a0]">
                             {presentation.slide_count} {presentation.slide_count === 1 ? 'slide' : 'slides'}

@@ -103,13 +103,13 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#1a1a1a]">
+        <div className="min-h-screen bg-[#0f0f0f] gradient-mesh">
             {/* Navigation */}
-            <nav className="bg-[#2a2a2a] border-b border-[#404040]">
+            <nav className="bg-[#1a1a1a]/80 backdrop-blur-xl border-b border-[#2a2a2a]">
                 <div className="mx-auto max-w-7xl px-6">
                     <div className="flex h-16 justify-between items-center">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gradient-to-br from-[#FFB4A3] to-[#FF9B85] rounded-lg flex items-center justify-center">
+                            <div className="w-8 h-8 gradient-orange-pink rounded-lg flex items-center justify-center shadow-lg shadow-orange-500/20">
                                 <span className="text-white font-bold text-lg">M</span>
                             </div>
                             <span className="text-xl font-bold text-white">
@@ -167,16 +167,16 @@ export default function DashboardPage() {
 
                     {/* Quick Actions */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                        <button className="flex items-center gap-3 p-4 bg-gradient-to-r from-[#FFB4A3] to-[#FF9B85] rounded-xl text-white font-medium hover:shadow-lg hover:shadow-[#FFB4A3]/20 transition-all">
+                        <button className="flex items-center gap-3 p-4 gradient-orange-pink animate-gradient rounded-xl text-white font-medium hover:shadow-2xl hover:shadow-orange-500/30 transition-all transform hover:scale-105">
                             <Upload className="w-5 h-5" />
                             Upload PPTX
                         </button>
-                        <button className="flex items-center gap-3 p-4 bg-[#2a2a2a] border border-[#404040] rounded-xl text-white font-medium hover:border-[#FFB4A3] transition-all">
-                            <Sparkles className="w-5 h-5 text-[#9B87FF]" />
+                        <button className="flex items-center gap-3 p-4 gradient-blue-purple animate-gradient rounded-xl text-white font-medium hover:shadow-2xl hover:shadow-blue-500/30 transition-all transform hover:scale-105">
+                            <Sparkles className="w-5 h-5" />
                             Start from AI
                         </button>
-                        <button className="flex items-center gap-3 p-4 bg-[#2a2a2a] border border-[#404040] rounded-xl text-white font-medium hover:border-[#FFB4A3] transition-all">
-                            <LayoutTemplate className="w-5 h-5 text-[#87B7FF]" />
+                        <button className="flex items-center gap-3 p-4 gradient-teal-yellow animate-gradient rounded-xl text-white font-medium hover:shadow-2xl hover:shadow-teal-500/30 transition-all transform hover:scale-105">
+                            <LayoutTemplate className="w-5 h-5" />
                             Browse Templates
                         </button>
                     </div>
