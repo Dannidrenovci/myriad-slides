@@ -9,6 +9,8 @@ import { SlideSidebar } from '@/components/editor/SlideSidebar'
 import { ZoomControls } from '@/components/editor/ZoomControls'
 import { LayoutSelector } from '@/components/editor/LayoutSelector'
 import { TextFormatting } from '@/components/editor/TextFormatting'
+import { ImageTools } from '@/components/editor/ImageTools'
+import { ShapeTools } from '@/components/editor/ShapeTools'
 import { useHistory } from '@/lib/useHistory'
 import { cn } from '@/lib/utils'
 import html2canvas from 'html2canvas'
@@ -368,14 +370,24 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                 {/* Right Panel - Editing Controls */}
                 <div className="w-80 bg-gray-800 border-l border-gray-700 overflow-y-auto p-4">
                     {currentSlide && (
-                        <>
+                        <div className="space-y-6">
                             <LayoutSelector
                                 currentLayout={currentSlide.layout_id}
                                 onLayoutChange={handleLayoutChange}
                             />
 
-                            <TextFormatting />
-                        </>
+                            <div className="border-t border-gray-700 pt-6">
+                                <TextFormatting />
+                            </div>
+
+                            <div className="border-t border-gray-700 pt-6">
+                                <ImageTools />
+                            </div>
+
+                            <div className="border-t border-gray-700 pt-6">
+                                <ShapeTools />
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
