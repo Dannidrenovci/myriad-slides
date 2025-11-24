@@ -17,15 +17,21 @@ export default function LoginPage() {
         setLoading(true)
         setError(null)
 
-        const { error } = await supabase.auth.signInWithPassword({
+        console.log('Attempting login with:', email)
+
+        const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         })
 
+        console.log('Login response:', { data, error })
+
         if (error) {
+            console.error('Login error:', error)
             setError(error.message)
             setLoading(false)
         } else {
+            console.log('Login successful, redirecting...')
             router.push('/dashboard')
         }
     }
