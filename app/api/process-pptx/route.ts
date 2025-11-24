@@ -1,4 +1,3 @@
-```typescript
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 import { openai } from '@/lib/openai'
@@ -25,7 +24,7 @@ export async function POST(request: Request) {
         }
 
         // 2. Save to temp file (Required for officeparser)
-        const tempFilePath = path.join(os.tmpdir(), `temp_${ presentationId }.pptx`)
+        const tempFilePath = path.join(os.tmpdir(), 'temp_' + presentationId + '.pptx')
         const buffer = Buffer.from(await fileData.arrayBuffer())
         fs.writeFileSync(tempFilePath, buffer)
 
@@ -50,25 +49,7 @@ export async function POST(request: Request) {
             messages: [
                 {
                     role: 'system',
-                    content: `You are a presentation assistant.Analyze the following slide text and determine the best HTML layout for each slide.
-                    Available layouts:
-    1. TitleSlide(Title, Subtitle)
-2. TitleAndBody(Title, Body text)
-3. BulletedList(Title, List of items)
-4. SectionHeader(Title only, centered)
-5. TwoColumn(Title, Left column, Right column)
-6. Quote(Quote text, Author)
-                    
-                    Return a JSON object with a "slides" array.Each slide should have:
-- layoutId(string, one of the names above)
-    - content(object with fields matching the layout requirements)
-
-Example:
-{
-    "slides": [
-        { "layoutId": "TitleSlide", "content": { "title": "My Presentation", "subtitle": "By Me" } }
-    ]
-} `
+                    content: 'You are a presentation assistant. Analyze the following slide text and determine the best HTML layout for each slide. Available layouts: 1. TitleSlide (Title, Subtitle) 2. TitleAndBody (Title, Body text) 3. BulletedList (Title, List of items) 4. SectionHeader (Title only, centered) 5. TwoColumn (Title, Left column, Right column) 6. Quote (Quote text, Author). Return a JSON object with a "slides" array. Each slide should have: - layoutId (string, one of the names above) - content (object with fields matching the layout requirements). Example: { "slides": [ { "layoutId": "TitleSlide", "content": { "title": "My Presentation", "subtitle": "By Me" } } ] }'
                 },
                 {
                     role: 'user',
@@ -109,4 +90,3 @@ Example:
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }
-```
