@@ -2,12 +2,10 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 import { openai } from '@/lib/openai'
-// import officeParser from 'officeparser'
-// import fs from 'fs'
-// import path from 'path'
-// import os from 'os'
-
-export const runtime = 'edge'
+import officeParser from 'officeparser'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
 
 export async function POST(request: Request) {
     try {
@@ -18,37 +16,34 @@ export async function POST(request: Request) {
         }
 
         // 1. Get the file from Supabase Storage
-        // const { data: fileData, error: downloadError } = await supabase.storage
-        //     .from('presentations')
-        //     .download(filePath)
+        const { data: fileData, error: downloadError } = await supabase.storage
+            .from('presentations')
+            .download(filePath)
 
-        // if (downloadError) {
-        //     throw new Error(`Failed to download file: ${ downloadError.message } `)
-        // }
+        if (downloadError) {
+            throw new Error(`Failed to download file: ${ downloadError.message } `)
+        }
 
         // 2. Save to temp file (Required for officeparser)
-        // const tempFilePath = path.join(os.tmpdir(), `temp_${ presentationId }.pptx`)
-        // const buffer = Buffer.from(await fileData.arrayBuffer())
-        // fs.writeFileSync(tempFilePath, buffer)
+        const tempFilePath = path.join(os.tmpdir(), `temp_${ presentationId }.pptx`)
+        const buffer = Buffer.from(await fileData.arrayBuffer())
+        fs.writeFileSync(tempFilePath, buffer)
 
         // 3. Parse PPTX
-        // let text = ''
-        // try {
-        //     text = await new Promise((resolve, reject) => {
-        //         officeParser.parseOffice(tempFilePath, (data: string, err: any) => {
-        //             if (err) reject(err)
-        //             else resolve(data)
-        //         })
-        //     })
-        // } finally {
-        //     // Cleanup temp file
-        //     if (fs.existsSync(tempFilePath)) {
-        //         fs.unlinkSync(tempFilePath)
-        //     }
-        // }
-
-        // MOCK DATA FOR EDGE DEPLOYMENT
-        const text = "This is a placeholder text because the PPTX parser cannot run on Cloudflare Edge. Please deploy this API to a Node.js environment."
+        let text = ''
+        try {
+            text = await new Promise((resolve, reject) => {
+                officeParser.parseOffice(tempFilePath, (data: string, err: any) => {
+                    if (err) reject(err)
+                    else resolve(data)
+                })
+            })
+        } finally {
+            // Cleanup temp file
+            if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath)
+            }
+        }
 
         // 4. Send to OpenAI to determine layouts
         const completion = await openai.chat.completions.create({
@@ -90,9 +85,9 @@ Example:
         // 5. Save slides to Database
         const slidesToInsert = slides.map((slide: any, index: number) => ({
             presentation_id: presentationId,
-            order_index: index,
             layout_id: slide.layoutId,
-            content: slide.content
+            content: slide.content,
+            order_index: index
         }))
 
         const { error: slidesError } = await supabase
