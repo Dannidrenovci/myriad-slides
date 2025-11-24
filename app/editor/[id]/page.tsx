@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { use, useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
@@ -18,13 +18,13 @@ interface Presentation {
     title: string
 }
 
-export default function EditorPage({ params }: { params: { id: string } }) {
+export default function EditorPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params)
     const [presentation, setPresentation] = useState<Presentation | null>(null)
     const [slides, setSlides] = useState<Slide[]>([])
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
     const [loading, setLoading] = useState(true)
     const router = useRouter()
-    const { id } = params
 
     useEffect(() => {
         const fetchData = async () => {
