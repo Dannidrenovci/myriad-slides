@@ -21,7 +21,7 @@ export async function POST(request: Request) {
             .download(filePath)
 
         if (downloadError) {
-            throw new Error(`Failed to download file: ${ downloadError.message } `)
+            throw new Error('Failed to download file: ' + downloadError.message)
         }
 
         // 2. Save to temp file (Required for officeparser)
