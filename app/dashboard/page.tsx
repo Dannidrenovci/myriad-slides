@@ -103,9 +103,9 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#0f0f0f] gradient-mesh">
+        <div className="min-h-screen bg-black">
             {/* Navigation */}
-            <nav className="bg-[#1a1a1a]/80 backdrop-blur-xl border-b border-[#2a2a2a]">
+            <nav className="bg-[#0a0a0a] backdrop-blur-xl border-b border-[#1a1a1a]">
                 <div className="mx-auto max-w-7xl px-6">
                     <div className="flex h-16 justify-between items-center">
                         <div className="flex items-center gap-3">
@@ -167,15 +167,15 @@ export default function DashboardPage() {
 
                     {/* Quick Actions */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                        <button className="flex items-center gap-3 p-4 gradient-orange-pink animate-gradient rounded-xl text-white font-medium hover:shadow-2xl hover:shadow-orange-500/30 transition-all transform hover:scale-105">
+                        <button className="flex items-center gap-3 p-4 gradient-orange-pink animate-gradient rounded-xl text-white font-medium hover:brightness-110 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300">
                             <Upload className="w-5 h-5" />
                             Upload PPTX
                         </button>
-                        <button className="flex items-center gap-3 p-4 gradient-blue-purple animate-gradient rounded-xl text-white font-medium hover:shadow-2xl hover:shadow-blue-500/30 transition-all transform hover:scale-105">
+                        <button className="flex items-center gap-3 p-4 gradient-blue-purple animate-gradient rounded-xl text-white font-medium hover:brightness-110 hover:shadow-2xl hover:shadow-blue-500/30 transition-all duration-300">
                             <Sparkles className="w-5 h-5" />
                             Start from AI
                         </button>
-                        <button className="flex items-center gap-3 p-4 gradient-teal-yellow animate-gradient rounded-xl text-white font-medium hover:shadow-2xl hover:shadow-teal-500/30 transition-all transform hover:scale-105">
+                        <button className="flex items-center gap-3 p-4 gradient-teal-yellow animate-gradient rounded-xl text-white font-medium hover:brightness-110 hover:shadow-2xl hover:shadow-teal-500/30 transition-all duration-300">
                             <LayoutTemplate className="w-5 h-5" />
                             Browse Templates
                         </button>
