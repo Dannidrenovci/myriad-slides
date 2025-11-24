@@ -1,112 +1,98 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Play, Share2, MoreVertical, CheckCircle, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
-import { scaleIn, hoverLift } from '@/lib/animations'
-
-interface Presentation {
-    id: string
-    title: string
-    created_at: string
-    status: string
-    slide_count?: number
-}
+import { FileText, MoreVertical, Copy, Trash2, Clock } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { useState } from 'react'
 
 interface PresentationCardProps {
-    presentation: Presentation
+    presentation: {
+        id: string
+        title: string
+        created_at: string
+        status: string
+        slide_count?: number
+    }
 }
 
 export function PresentationCard({ presentation }: PresentationCardProps) {
     const router = useRouter()
-    const slideCount = presentation.slide_count || 0
-    const isProcessing = presentation.status === 'processing'
+    const [showMenu, setShowMenu] = useState(false)
 
-    // Calculate time ago
-    const timeAgo = new Date(presentation.created_at).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric'
-    })
+    const handleClick = () => {
+        router.push(`/editor/${presentation.id}`)
+    }
+
+    const timeAgo = formatDistanceToNow(new Date(presentation.created_at), { addSuffix: true })
 
     return (
         <motion.div
-            variants={scaleIn}
-            {...hoverLift}
-            onClick={() => !isProcessing && router.push(`/editor/${presentation.id}`)}
-            className={cn(
-                "group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300",
-                !isProcessing && "cursor-pointer"
-            )}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ y: -4 }}
+            onClick={handleClick}
+            className="group bg-[#2a2a2a] rounded-xl border border-[#404040] hover:border-[#FFB4A3] transition-all cursor-pointer overflow-hidden"
         >
-            {/* Thumbnail with gradient overlay */}
-            <div className="relative aspect-video bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900">
-                {/* TODO: Actual slide thumbnail */}
-                <div className="w-full h-full flex items-center justify-center text-6xl font-bold text-indigo-300 dark:text-indigo-700">
-                    {presentation.title.charAt(0).toUpperCase()}
-                </div>
+            {/* Thumbnail */}
+            <div className="aspect-video bg-gradient-to-br from-[#3a3a3a] to-[#2a2a2a] flex items-center justify-center relative">
+                <FileText className="w-16 h-16 text-[#505050] group-hover:text-[#FFB4A3] transition-colors" />
 
-                {/* Hover overlay with actions */}
-                {!isProcessing && (
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="absolute bottom-4 left-4 right-4 flex gap-2">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); router.push(`/editor/${presentation.id}`) }}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white/90 hover:bg-white text-gray-900 rounded-lg text-sm font-medium transition-colors"
-                            >
-                                <Play className="w-4 h-4" /> Present
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); /* TODO: Share */ }}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white/90 hover:bg-white text-gray-900 rounded-lg text-sm font-medium transition-colors"
-                            >
-                                <Share2 className="w-4 h-4" /> Share
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); /* TODO: More actions */ }}
-                                className="ml-auto px-3 py-1.5 bg-white/90 hover:bg-white text-gray-900 rounded-lg text-sm font-medium transition-colors"
-                            >
-                                <MoreVertical className="w-4 h-4" />
-                            </button>
-                        </div>
+                {/* Slide Count Badge */}
+                {presentation.slide_count !== undefined && (
+                    <div className="absolute bottom-3 right-3 bg-[#1a1a1a]/80 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1">
+                        <FileText className="w-3 h-3 text-[#a0a0a0]" />
+                        <span className="text-xs font-medium text-[#a0a0a0]">
+                            {presentation.slide_count} {presentation.slide_count === 1 ? 'slide' : 'slides'}
+                        </span>
                     </div>
                 )}
             </div>
 
-            {/* Card content */}
-            <div className="p-6">
-                <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
-                            {presentation.title}
-                        </h3>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            {slideCount} {slideCount === 1 ? 'slide' : 'slides'} · Updated {timeAgo}
-                        </p>
-                    </div>
-
-                    {/* Status badge */}
-                    {presentation.status === 'ready' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs font-medium rounded-full">
-                            <CheckCircle className="w-3 h-3" />
-                            Ready
-                        </span>
-                    )}
+            {/* Content */}
+            <div className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="font-semibold text-white line-clamp-1 group-hover:text-[#FFB4A3] transition-colors">
+                        {presentation.title}
+                    </h3>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setShowMenu(!showMenu)
+                        }}
+                        className="p-1 hover:bg-[#3a3a3a] rounded transition-colors"
+                    >
+                        <MoreVertical className="w-4 h-4 text-[#a0a0a0]" />
+                    </button>
                 </div>
+
+                <div className="flex items-center gap-2 text-xs text-[#707070]">
+                    <Clock className="w-3 h-3" />
+                    <span>{timeAgo}</span>
+                </div>
+
+                {/* Status Badge */}
+                {presentation.status === 'processing' && (
+                    <div className="mt-3 flex items-center gap-2">
+                        <div className="w-full bg-[#3a3a3a] rounded-full h-1 overflow-hidden">
+                            <div className="h-full bg-[#FFB4A3] animate-pulse" style={{ width: '60%' }} />
+                        </div>
+                        <span className="text-xs text-[#FFB4A3]">Processing...</span>
+                    </div>
+                )}
             </div>
 
-            {/* Processing indicator overlay */}
-            {isProcessing && (
-                <div className="absolute inset-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm flex items-center justify-center">
-                    <div className="text-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto" />
-                        <p className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-                            AI is analyzing your slides...
-                        </p>
-                        <div className="mt-4 w-48 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mx-auto">
-                            <div className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 animate-progress" />
-                        </div>
-                    </div>
+            {/* Quick Actions Menu */}
+            {showMenu && (
+                <div className="absolute right-4 top-16 bg-[#333333] border border-[#505050] rounded-lg shadow-xl py-1 z-10 min-w-[160px]">
+                    <button className="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#3a3a3a] flex items-center gap-2">
+                        <Copy className="w-4 h-4" />
+                        Duplicate
+                    </button>
+                    <button className="w-full px-4 py-2 text-left text-sm text-[#FF9B85] hover:bg-[#3a3a3a] flex items-center gap-2">
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                    </button>
                 </div>
             )}
         </motion.div>

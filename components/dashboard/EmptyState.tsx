@@ -1,63 +1,32 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { FileText, Sparkles, Upload, Wand2 } from 'lucide-react'
-import { fadeInUp } from '@/lib/animations'
-import UploadButton from './UploadButton'
+import { FileText, Upload } from 'lucide-react'
 
 export function EmptyState() {
     return (
         <motion.div
-            variants={fadeInUp}
-            initial="initial"
-            animate="animate"
-            className="text-center py-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center py-16 px-4"
         >
-            {/* Animated illustration */}
-            <div className="relative w-64 h-64 mx-auto mb-8">
-                <motion.div
-                    animate={{
-                        y: [0, -10, 0],
-                        rotate: [0, 5, 0, -5, 0]
-                    }}
-                    transition={{
-                        duration: 4,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                >
-                    <FileText className="w-full h-full text-indigo-200 dark:text-indigo-800" />
-                </motion.div>
-
-                {/* Floating sparkles */}
-                <motion.div
-                    className="absolute top-0 right-0"
-                    animate={{
-                        scale: [1, 1.2, 1],
-                        opacity: [0.5, 1, 0.5]
-                    }}
-                    transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                >
-                    <Sparkles className="w-8 h-8 text-yellow-400" />
-                </motion.div>
+            <div className="w-24 h-24 bg-[#2a2a2a] rounded-full flex items-center justify-center mb-6">
+                <FileText className="w-12 h-12 text-[#FFB4A3]" />
             </div>
 
-            <h3 className="text-3xl font-bold text-gray-900 dark:text-white">
-                No presentations yet
-            </h3>
-            <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
-                Upload a PowerPoint or start from scratch
+            <h3 className="text-2xl font-bold text-white mb-2">No presentations yet</h3>
+            <p className="text-[#a0a0a0] text-center max-w-md mb-8">
+                Get started by uploading a PowerPoint file or creating a new presentation from scratch
             </p>
 
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-                <UploadButton />
-                <button className="inline-flex items-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-2 border-gray-300 dark:border-gray-700 rounded-lg font-semibold hover:border-indigo-500 dark:hover:border-indigo-500 transition-colors">
-                    <Wand2 className="w-5 h-5" />
-                    Create with AI
+            <div className="flex gap-4">
+                <button className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#FFB4A3] to-[#FF9B85] text-white rounded-lg font-medium hover:shadow-lg hover:shadow-[#FFB4A3]/20 transition-all">
+                    <Upload className="w-5 h-5" />
+                    Upload PPTX
+                </button>
+                <button className="flex items-center gap-2 px-6 py-3 bg-[#2a2a2a] border border-[#404040] text-white rounded-lg font-medium hover:border-[#FFB4A3] transition-all">
+                    <FileText className="w-5 h-5" />
+                    Create New
                 </button>
             </div>
         </motion.div>
