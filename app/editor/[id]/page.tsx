@@ -159,7 +159,21 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                             <div className="h-full w-full shadow-2xl">
                                 {(() => {
                                     const LayoutComponent = Layouts[currentSlide.layout_id] || Layouts.TitleAndBody
-                                    return <LayoutComponent content={currentSlide.content} />
+                                    return <LayoutComponent
+                                        content={currentSlide.content}
+                                        onContentChange={async (newContent) => {
+                                            // Update local state immediately
+                                            const newSlides = [...slides]
+                                            newSlides[currentSlideIndex] = { ...currentSlide, content: newContent }
+                                            setSlides(newSlides)
+
+                                            // Auto-save to database
+                                            await supabase
+                                                .from('slides')
+                                                .update({ content: newContent })
+                                                .eq('id', currentSlide.id)
+                                        }}
+                                    />
                                 })()}
                             </div>
                         ) : (

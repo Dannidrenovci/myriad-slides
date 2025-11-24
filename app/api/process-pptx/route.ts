@@ -1,10 +1,22 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@supabase/supabase-js'
 import { openai } from '@/lib/openai'
 import officeParser from 'officeparser'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+
+// Create a Supabase client with service role for server-side operations
+const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false
+        }
+    }
+)
 
 export async function POST(request: Request) {
     try {
@@ -15,7 +27,7 @@ export async function POST(request: Request) {
         }
 
         // 1. Get the file from Supabase Storage
-        const { data: fileData, error: downloadError } = await supabase.storage
+        const { data: fileData, error: downloadError } = await supabaseAdmin.storage
             .from('presentations')
             .download(filePath)
 
@@ -44,12 +56,42 @@ export async function POST(request: Request) {
             }
         }
 
-        // 4. Send to OpenAI to determine layouts
+        console.log('Extracted text from PPTX:', text)
+
+        // 4. Send to OpenAI to determine layouts and extract content
         const completion = await openai.chat.completions.create({
             messages: [
                 {
                     role: 'system',
-                    content: 'You are a presentation assistant. Analyze the following slide text and determine the best HTML layout for each slide. Available layouts: 1. TitleSlide (Title, Subtitle) 2. TitleAndBody (Title, Body text) 3. BulletedList (Title, List of items) 4. SectionHeader (Title only, centered) 5. TwoColumn (Title, Left column, Right column) 6. Quote (Quote text, Author). Return a JSON object with a "slides" array. Each slide should have: - layoutId (string, one of the names above) - content (object with fields matching the layout requirements). Example: { "slides": [ { "layoutId": "TitleSlide", "content": { "title": "My Presentation", "subtitle": "By Me" } } ] }'
+                    content: `You are a presentation assistant. Analyze the following text extracted from a PowerPoint presentation and convert it into structured slides.
+
+Your task:
+1. Identify individual slides based on the content structure
+2. For each slide, determine the best layout from these options:
+   - TitleSlide: For title slides (fields: title, subtitle)
+   - TitleAndBody: For slides with a title and body text (fields: title, body)
+   - BulletedList: For slides with bullet points (fields: title, items - array of strings)
+   - SectionHeader: For section dividers (fields: title)
+   - TwoColumn: For two-column layouts (fields: title, left, right)
+   - Quote: For quotes (fields: quote, author)
+
+3. Extract the ACTUAL text content from the presentation - do not create placeholders
+4. Preserve the original wording as much as possible
+
+Return a JSON object with this structure:
+{
+  "slides": [
+    {
+      "layoutId": "BulletedList",
+      "content": {
+        "title": "Actual slide title from the presentation",
+        "items": ["First actual bullet point", "Second actual bullet point", "Third actual bullet point"]
+      }
+    }
+  ]
+}
+
+IMPORTANT: Use the real text from the presentation, not generic placeholders like "Point 1", "Point 2".`
                 },
                 {
                     role: 'user',
@@ -59,6 +101,8 @@ export async function POST(request: Request) {
             model: 'gpt-4o',
             response_format: { type: 'json_object' },
         })
+
+        console.log('OpenAI response:', completion.choices[0].message.content)
 
         const result = JSON.parse(completion.choices[0].message.content || '{}')
         const slides = result.slides || []
@@ -71,14 +115,14 @@ export async function POST(request: Request) {
             order_index: index
         }))
 
-        const { error: slidesError } = await supabase
+        const { error: slidesError } = await supabaseAdmin
             .from('slides')
             .insert(slidesToInsert)
 
         if (slidesError) throw slidesError
 
         // 6. Update Presentation Status
-        await supabase
+        await supabaseAdmin
             .from('presentations')
             .update({ status: 'ready' })
             .eq('id', presentationId)

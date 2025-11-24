@@ -50,10 +50,12 @@ export default function UploadButton() {
             // 3. Trigger processing API
             await fetch('/api/process-pptx', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ presentationId: presentation.id, filePath }),
             })
 
-            router.refresh()
+            // Redirect to editor
+            router.push(`/editor/${presentation.id}`)
         } catch (error) {
             console.error('Error uploading:', error)
             alert('Error uploading presentation')
