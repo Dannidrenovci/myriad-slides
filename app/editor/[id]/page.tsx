@@ -2,9 +2,17 @@
 
 import { use, useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter, useParams } from 'next/navigation'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, Undo2, Redo2, Download } from 'lucide-react'
 import { Layouts } from '@/components/layouts'
+import { SlideSidebar } from '@/components/editor/SlideSidebar'
+import { ZoomControls } from '@/components/editor/ZoomControls'
+import { LayoutSelector } from '@/components/editor/LayoutSelector'
+import { TextFormatting } from '@/components/editor/TextFormatting'
+import { useHistory } from '@/lib/useHistory'
+import { cn } from '@/lib/utils'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 interface Slide {
     id: string
@@ -23,8 +31,12 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
     const [presentation, setPresentation] = useState<Presentation | null>(null)
     const [slides, setSlides] = useState<Slide[]>([])
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
+    const [zoom, setZoom] = useState(1)
     const [loading, setLoading] = useState(true)
     const router = useRouter()
+
+    // History management
+    const { current: historySlides, push: pushHistory, undo, redo, canUndo, canRedo, reset } = useHistory<Slide[]>([])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -58,208 +70,330 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
                 console.error('Error fetching slides:', slidesError)
             } else {
                 setSlides(slidesData || [])
+                reset(slidesData || [])
             }
             setLoading(false)
         }
 
         fetchData()
-    }, [id, router])
+    }, [id, router, reset])
 
-    const handleSlideClick = (index: number) => {
-        setCurrentSlideIndex(index)
-    }
-
-    const exportPDF = async () => {
-        if (!presentation) return
-        const html2canvas = (await import('html2canvas')).default
-        const jsPDF = (await import('jspdf')).default
-
-        const pdf = new jsPDF({
-            orientation: 'landscape',
-            unit: 'px',
-            format: [1280, 720] // 16:9 aspect ratio
-        })
-
-        // We need to render all slides to capture them. 
-        // For this MVP, we'll just capture the current slide as a demo, 
-        // or we'd need a hidden container rendering all slides.
-        // Let's try to capture the current view for now.
-
-        const element = document.getElementById('slide-canvas')
-        if (!element) return
-
-        const canvas = await html2canvas(element, {
-            scale: 2, // Higher quality
-            useCORS: true
-        })
-
-        const imgData = canvas.toDataURL('image/png')
-        pdf.addImage(imgData, 'PNG', 0, 0, 1280, 720)
-        pdf.save(`${presentation.title}.pdf`)
-    }
-
-    if (loading) {
-        return <div className="flex h-screen items-center justify-center">Loading editor...</div>
-    }
-
-    if (!presentation) {
-        return <div className="flex h-screen items-center justify-center">Presentation not found</div>
-    }
+    // Sync history with slides
+    useEffect(() => {
+        if (historySlides.length > 0 && historySlides !== slides) {
+            setSlides(historySlides)
+        }
+    }, [historySlides])
 
     const currentSlide = slides[currentSlideIndex]
 
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z') {
+                    e.preventDefault()
+                    undo()
+                }
+                if (e.key === 'y') {
+                    e.preventDefault()
+                    redo()
+                }
+                if (e.key === 's') {
+                    e.preventDefault()
+                    saveAllSlides()
+                }
+                if (e.key === 'd') {
+                    e.preventDefault()
+                    handleDuplicateSlide(currentSlideIndex)
+                }
+            }
+
+            if (e.key === 'ArrowLeft' && currentSlideIndex > 0) {
+                e.preventDefault()
+                setCurrentSlideIndex(currentSlideIndex - 1)
+            }
+            if (e.key === 'ArrowRight' && currentSlideIndex < slides.length - 1) {
+                e.preventDefault()
+                setCurrentSlideIndex(currentSlideIndex + 1)
+            }
+
+            if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement?.tagName !== 'INPUT') {
+                e.preventDefault()
+                handleDeleteSlide(currentSlideIndex)
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [currentSlideIndex, slides.length, undo, redo])
+
+    const saveAllSlides = async () => {
+        for (const slide of slides) {
+            await supabase
+                .from('slides')
+                .update({ content: slide.content, layout_id: slide.layout_id, order_index: slide.order_index })
+                .eq('id', slide.id)
+        }
+    }
+
+    const handleContentChange = async (newContent: any) => {
+        const newSlides = [...slides]
+        newSlides[currentSlideIndex] = { ...currentSlide, content: newContent }
+        pushHistory(newSlides)
+
+        // Auto-save
+        await supabase
+            .from('slides')
+            .update({ content: newContent })
+            .eq('id', currentSlide.id)
+    }
+
+    const handleLayoutChange = async (layoutId: string) => {
+        const newSlides = [...slides]
+        newSlides[currentSlideIndex] = { ...currentSlide, layout_id: layoutId }
+        pushHistory(newSlides)
+
+        await supabase
+            .from('slides')
+            .update({ layout_id: layoutId })
+            .eq('id', currentSlide.id)
+    }
+
+    const handleReorderSlides = async (reorderedSlides: Slide[]) => {
+        pushHistory(reorderedSlides)
+
+        // Update database
+        for (const slide of reorderedSlides) {
+            await supabase
+                .from('slides')
+                .update({ order_index: slide.order_index })
+                .eq('id', slide.id)
+        }
+    }
+
+    const handleAddSlide = async () => {
+        const newSlide = {
+            presentation_id: id,
+            order_index: slides.length,
+            layout_id: 'TitleAndBody',
+            content: { title: 'New Slide', body: 'Add your content here...' }
+        }
+
+        const { data, error } = await supabase
+            .from('slides')
+            .insert(newSlide)
+            .select()
+            .single()
+
+        if (!error && data) {
+            const newSlides = [...slides, data]
+            pushHistory(newSlides)
+            setCurrentSlideIndex(newSlides.length - 1)
+        }
+    }
+
+    const handleDuplicateSlide = async (index: number) => {
+        const slideToDuplicate = slides[index]
+        const newSlide = {
+            presentation_id: id,
+            order_index: index + 1,
+            layout_id: slideToDuplicate.layout_id,
+            content: { ...slideToDuplicate.content }
+        }
+
+        const { data, error } = await supabase
+            .from('slides')
+            .insert(newSlide)
+            .select()
+            .single()
+
+        if (!error && data) {
+            const newSlides = [
+                ...slides.slice(0, index + 1),
+                data,
+                ...slides.slice(index + 1).map(s => ({ ...s, order_index: s.order_index + 1 }))
+            ]
+            pushHistory(newSlides)
+        }
+    }
+
+    const handleDeleteSlide = async (index: number) => {
+        if (slides.length === 1) {
+            alert('Cannot delete the last slide')
+            return
+        }
+
+        const slideToDelete = slides[index]
+        await supabase.from('slides').delete().eq('id', slideToDelete.id)
+
+        const newSlides = slides
+            .filter((_, i) => i !== index)
+            .map((s, i) => ({ ...s, order_index: i }))
+
+        pushHistory(newSlides)
+        if (currentSlideIndex >= newSlides.length) {
+            setCurrentSlideIndex(newSlides.length - 1)
+        }
+    }
+
+    const handleZoomChange = (newZoom: number | 'fit') => {
+        if (newZoom === 'fit') {
+            // Calculate fit zoom based on container size
+            setZoom(0.75)
+        } else {
+            setZoom(newZoom)
+        }
+    }
+
+    const exportToPDF = async () => {
+        const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'px',
+            format: [1280, 720]
+        })
+
+        for (let i = 0; i < slides.length; i++) {
+            const slideElement = document.getElementById(`slide-export-${i}`)
+            if (slideElement) {
+                const canvas = await html2canvas(slideElement, { scale: 2 })
+                const imgData = canvas.toDataURL('image/png')
+
+                if (i > 0) pdf.addPage()
+                pdf.addImage(imgData, 'PNG', 0, 0, 1280, 720)
+            }
+        }
+
+        pdf.save(`${presentation?.title || 'presentation'}.pdf`)
+    }
+
+    if (loading) {
+        return (
+            <div className="h-screen flex items-center justify-center bg-gray-900">
+                <div className="text-white">Loading...</div>
+            </div>
+        )
+    }
+
     return (
-        <div className="flex h-screen flex-col bg-gray-100 overflow-hidden">
-            {/* Toolbar */}
-            <header className="flex h-14 items-center justify-between border-b bg-white px-4 shadow-sm z-10">
+        <div className="h-screen flex flex-col bg-gray-900">
+            {/* Top Toolbar */}
+            <div className="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4">
                 <div className="flex items-center gap-4">
-                    <Link href="/dashboard" className="text-gray-500 hover:text-gray-700">
-                        ← Back
-                    </Link>
-                    <h1 className="text-lg font-semibold text-gray-900">{presentation.title}</h1>
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="flex items-center gap-2 px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back
+                    </button>
+                    <h1 className="text-lg font-semibold text-white">{presentation?.title}</h1>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={exportPDF}
-                        className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
+                        onClick={undo}
+                        disabled={!canUndo}
+                        className={cn(
+                            "p-2 rounded-lg transition-colors",
+                            canUndo ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 cursor-not-allowed"
+                        )}
+                        title="Undo (Ctrl+Z)"
                     >
-                        Export PDF (Current Slide)
+                        <Undo2 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={redo}
+                        disabled={!canRedo}
+                        className={cn(
+                            "p-2 rounded-lg transition-colors",
+                            canRedo ? "text-gray-300 hover:bg-gray-700" : "text-gray-600 cursor-not-allowed"
+                        )}
+                        title="Redo (Ctrl+Y)"
+                    >
+                        <Redo2 className="w-4 h-4" />
+                    </button>
+                    <div className="w-px h-6 bg-gray-700 mx-2" />
+                    <button
+                        onClick={exportToPDF}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                        <Download className="w-4 h-4" />
+                        Export PDF
                     </button>
                 </div>
-            </header>
+            </div>
 
-            <div className="flex flex-1 overflow-hidden">
-                {/* Sidebar */}
-                <aside className="w-64 overflow-y-auto border-r bg-gray-50 p-4">
-                    <div className="space-y-4">
-                        {slides.map((slide, index) => (
-                            <div
-                                key={slide.id}
-                                onClick={() => handleSlideClick(index)}
-                                className={`cursor-pointer rounded-lg border-2 p-2 transition-all ${index === currentSlideIndex
-                                    ? 'border-indigo-600 ring-2 ring-indigo-100'
-                                    : 'border-gray-200 hover:border-gray-300'
-                                    }`}
-                            >
-                                <div className="aspect-video w-full bg-white shadow-sm flex items-center justify-center text-xs text-gray-400">
-                                    Slide {index + 1}
-                                </div>
-                                <div className="mt-1 text-center text-xs font-medium text-gray-500">
-                                    {index + 1}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </aside>
+            <div className="flex-1 flex overflow-hidden">
+                {/* Left Sidebar - Slide Thumbnails */}
+                <SlideSidebar
+                    slides={slides}
+                    currentSlideIndex={currentSlideIndex}
+                    onSelectSlide={setCurrentSlideIndex}
+                    onReorderSlides={handleReorderSlides}
+                    onDuplicateSlide={handleDuplicateSlide}
+                    onDeleteSlide={handleDeleteSlide}
+                    onAddSlide={handleAddSlide}
+                />
 
                 {/* Main Canvas */}
-                <main className="flex-1 overflow-y-auto bg-gray-200 p-8 flex items-center justify-center">
-                    <div id="slide-canvas" className="aspect-video w-full max-w-5xl bg-white shadow-lg rounded-sm overflow-hidden relative">
-                        {currentSlide ? (
-                            <div className="h-full w-full shadow-2xl">
-                                {(() => {
-                                    const LayoutComponent = Layouts[currentSlide.layout_id] || Layouts.TitleAndBody
-                                    return <LayoutComponent
-                                        content={currentSlide.content}
-                                        onContentChange={async (newContent) => {
-                                            // Update local state immediately
-                                            const newSlides = [...slides]
-                                            newSlides[currentSlideIndex] = { ...currentSlide, content: newContent }
-                                            setSlides(newSlides)
-
-                                            // Auto-save to database
-                                            await supabase
-                                                .from('slides')
-                                                .update({ content: newContent })
-                                                .eq('id', currentSlide.id)
-                                        }}
-                                    />
-                                })()}
-                            </div>
-                        ) : (
-                            <div className="flex h-full items-center justify-center text-gray-400">
-                                No slides
-                            </div>
-                        )}
+                <div className="flex-1 flex flex-col items-center justify-center bg-gray-900 p-8 overflow-auto">
+                    <div className="mb-4">
+                        <ZoomControls zoom={zoom} onZoomChange={handleZoomChange} />
                     </div>
-                </main>
 
-                {/* Editor Panel (Right) - Optional, maybe inline editing is better? */}
-                {/* For now, let's stick to inline or a simple right panel if needed. 
-            User asked for "Editor (with slides on the left, edit features on the right)"
-        */}
-                <aside className="w-80 overflow-y-auto border-l bg-white p-4">
-                    <h3 className="font-semibold text-gray-900 mb-4">Edit Slide</h3>
                     {currentSlide && (
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Layout</label>
-                                <input
-                                    type="text"
-                                    value={currentSlide.layout_id}
-                                    disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-50 sm:text-sm px-3 py-2"
-                                />
-                            </div>
-
-                            {Object.keys(currentSlide.content).map((key) => (
-                                <div key={key}>
-                                    <label className="block text-sm font-medium text-gray-700 capitalize">{key}</label>
-                                    {Array.isArray(currentSlide.content[key]) ? (
-                                        <div className="space-y-2 mt-1">
-                                            {currentSlide.content[key].map((item: string, i: number) => (
-                                                <input
-                                                    key={i}
-                                                    type="text"
-                                                    value={item}
-                                                    onChange={(e) => {
-                                                        const newContent = { ...currentSlide.content }
-                                                        newContent[key][i] = e.target.value
-                                                        const newSlides = [...slides]
-                                                        newSlides[currentSlideIndex] = { ...currentSlide, content: newContent }
-                                                        setSlides(newSlides)
-                                                    }}
-                                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
-                                                />
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <textarea
-                                            rows={4}
-                                            value={currentSlide.content[key]}
-                                            onChange={(e) => {
-                                                const newContent = { ...currentSlide.content }
-                                                newContent[key] = e.target.value
-                                                const newSlides = [...slides]
-                                                newSlides[currentSlideIndex] = { ...currentSlide, content: newContent }
-                                                setSlides(newSlides)
-                                            }}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
-                                        />
-                                    )}
-                                </div>
-                            ))}
-
-                            <button
-                                onClick={async () => {
-                                    const { error } = await supabase
-                                        .from('slides')
-                                        .update({ content: currentSlide.content })
-                                        .eq('id', currentSlide.id)
-
-                                    if (error) {
-                                        alert('Error saving slide')
-                                    } else {
-                                        alert('Slide saved!')
-                                    }
-                                }}
-                                className="mt-4 w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
-                            >
-                                Save Changes
-                            </button>
+                        <div
+                            className="bg-white shadow-2xl"
+                            style={{
+                                transform: `scale(${zoom})`,
+                                transformOrigin: 'center',
+                                width: '1280px',
+                                height: '720px'
+                            }}
+                        >
+                            {(() => {
+                                const LayoutComponent = Layouts[currentSlide.layout_id] || Layouts.TitleAndBody
+                                return (
+                                    <LayoutComponent
+                                        content={currentSlide.content}
+                                        onContentChange={handleContentChange}
+                                        isEditable={true}
+                                    />
+                                )
+                            })()}
                         </div>
                     )}
-                </aside>
+                </div>
+
+                {/* Right Panel - Editing Controls */}
+                <div className="w-80 bg-gray-800 border-l border-gray-700 overflow-y-auto p-4">
+                    {currentSlide && (
+                        <>
+                            <LayoutSelector
+                                currentLayout={currentSlide.layout_id}
+                                onLayoutChange={handleLayoutChange}
+                            />
+
+                            <TextFormatting />
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* Hidden slides for PDF export */}
+            <div className="hidden">
+                {slides.map((slide, index) => {
+                    const LayoutComponent = Layouts[slide.layout_id] || Layouts.TitleAndBody
+                    return (
+                        <div
+                            key={slide.id}
+                            id={`slide-export-${index}`}
+                            style={{ width: '1280px', height: '720px' }}
+                        >
+                            <LayoutComponent content={slide.content} isEditable={false} />
+                        </div>
+                    )
+                })}
             </div>
         </div>
     )

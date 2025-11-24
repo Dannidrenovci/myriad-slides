@@ -16,6 +16,7 @@ interface Presentation {
     title: string
     created_at: string
     status: string
+    slide_count?: number
 }
 
 export default function DashboardPage() {
@@ -40,7 +41,18 @@ export default function DashboardPage() {
             if (error) {
                 console.error('Error fetching presentations:', error)
             } else {
-                setPresentations(data || [])
+                // Fetch slide counts for each presentation
+                const presentationsWithCounts = await Promise.all(
+                    (data || []).map(async (pres) => {
+                        const { count } = await supabase
+                            .from('slides')
+                            .select('*', { count: 'exact', head: true })
+                            .eq('presentation_id', pres.id)
+
+                        return { ...pres, slide_count: count || 0 }
+                    })
+                )
+                setPresentations(presentationsWithCounts)
             }
             setLoading(false)
         }
