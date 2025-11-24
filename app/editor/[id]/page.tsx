@@ -6,6 +6,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Layouts } from '@/components/layouts'
 
+export const runtime = 'edge'
+
 interface Slide {
     id: string
     order_index: number

@@ -6,6 +6,8 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 
+export const runtime = 'edge'
+
 export async function POST(request: Request) {
     try {
         const { presentationId, filePath } = await request.json()
