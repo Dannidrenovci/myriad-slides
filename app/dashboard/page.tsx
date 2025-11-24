@@ -103,9 +103,9 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black">
+        <div className="min-h-screen bg-[#0a0a0a]">
             {/* Navigation */}
-            <nav className="bg-[#0a0a0a] backdrop-blur-xl border-b border-[#1a1a1a]">
+            <nav className="bg-[#111111] backdrop-blur-xl border-b border-[#1f1f1f]">
                 <div className="mx-auto max-w-7xl px-6">
                     <div className="flex h-16 justify-between items-center">
                         <div className="flex items-center gap-3">

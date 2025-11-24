@@ -21,10 +21,10 @@ const colorClasses = {
 export function StatCard({ value, label, icon: Icon, trend, color = 'peach' }: StatCardProps) {
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-            className="bg-[#0a0a0a] rounded-2xl p-6 border border-[#1a1a1a] hover:border-[#2a2a2a] transition-all duration-300"
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="bg-[#111111] rounded-2xl p-6 border border-[#1f1f1f] hover:border-[#2a2a2a] transition-all duration-200"
         >
             <div className="flex items-start justify-between">
                 <div className="relative z-10">
